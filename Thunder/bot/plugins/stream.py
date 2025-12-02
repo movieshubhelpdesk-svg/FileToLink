@@ -1,5 +1,3 @@
-# Thunder/bot/plugins/stream.py
-
 import asyncio
 import secrets
 from typing import Any, Dict, Optional
@@ -187,6 +185,12 @@ async def send_link(msg: Message, links: Dict[str, Any]):
 
 @StreamBot.on_message(filters.command("link") & ~filters.private)
 async def link_handler(bot: Client, msg: Message, **kwargs):
+    # --- OWNER ACCESS CHECK START ---
+    if msg.from_user and msg.from_user.id != Var.OWNER_ID:
+        await msg.reply_text("⛔ **Access Denied!**\nThis command is restricted to the owner.")
+        return
+    # --- OWNER ACCESS CHECK END ---
+
     async def _actual_link_handler(client: Client, message: Message, **handler_kwargs):
         shortener_val = await validate_request_common(client, message)
         if shortener_val is None:
@@ -261,6 +265,12 @@ async def link_handler(bot: Client, msg: Message, **kwargs):
     group=4
 )
 async def private_receive_handler(bot: Client, msg: Message, **kwargs):
+    # --- OWNER ACCESS CHECK START ---
+    if msg.from_user and msg.from_user.id != Var.OWNER_ID:
+        await msg.reply_text("⛔ **Access Denied!**\nThis bot is private and for owner use only.")
+        return
+    # --- OWNER ACCESS CHECK END ---
+
     async def _actual_private_receive_handler(client: Client, message: Message, **handler_kwargs):
         shortener_val = await validate_request_common(client, message)
         if shortener_val is None:
