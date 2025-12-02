@@ -1,5 +1,3 @@
-# Thunder/bot/plugins/callbacks.py (Updated Code)
-
 import asyncio
 
 from pyrogram import Client, filters
@@ -220,4 +218,4 @@ async def fallback_callback(client: Client, callback_query: CallbackQuery):
             await callback_query.answer(MSG_ERROR_CALLBACK_UNSUPPORTED, show_alert=True)
     except Exception as e:
         logger.error(f"Error in fallback callback: {e}", exc_info=True)
-  
+      
