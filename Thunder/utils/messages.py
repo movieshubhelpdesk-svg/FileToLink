@@ -117,12 +117,13 @@ MSG_SHELL_OUTPUT_STDERR = "<b>[stderr]:</b>\n<pre>{error}</pre>"
 MSG_SHELL_NO_OUTPUT = "✅ <b>Command Executed:</b> No output."
 
 # ------ Admin View & Control ------
-# ... (rest of messages.py remains the same) ...
+MSG_WORKLOAD_ITEM = "   {bot_name}: {load}\n"
+MSG_ADMIN_RESTART_DONE = "✅ **Restart Successful!**" # <-- Missing variable added here
+MSG_RESTARTING = "♻️ **Updating and Restarting Bot...**\n\n> ⏳ Please wait a moment."
+MSG_LOG_FILE_CAPTION = "📄 **System Logs**"
 
-# =====================================================================================
-# ====== BUTTON TEXTS (User-facing) ======
-# =====================================================================================
-# ... (rest of messages.py remains the same) ...
+MSG_LOG_FILE_EMPTY = "ℹ️ **Log File Empty:** No data found in the log file."
+MSG_LOG_FILE_MISSING = "⚠️ **Log File Missing:** Could not find the log file."
 
 # =====================================================================================
 # ====== BUTTON TEXTS (User-facing) ======
@@ -396,4 +397,3 @@ MSG_SYSTEM_STATS = (
 )
 
 MSG_DB_STATS = "📊 **Database Statistics**\n\n> 👥 **Total Users:** `{total_users}`"
-
