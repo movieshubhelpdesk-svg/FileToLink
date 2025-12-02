@@ -1,3 +1,6 @@
+Dekh bhai ye hai ek 
+# Thunder/bot/plugins/common.py
+
 import asyncio
 import time
 from datetime import datetime, timedelta
@@ -16,7 +19,6 @@ from Thunder.utils.file_properties import get_fname, get_fsize, parse_fid
 from Thunder.utils.force_channel import force_channel_check, get_force_info
 from Thunder.utils.human_readable import humanbytes
 from Thunder.utils.logger import logger
-from Thunder.utils import tokens # <-- NEW: tokens module import
 from Thunder.utils.messages import (
     MSG_ABOUT, MSG_BUTTON_ABOUT, MSG_BUTTON_CLOSE, MSG_BUTTON_GET_HELP,
     # MSG_BUTTON_GITHUB को हटा दिया गया है
@@ -27,8 +29,7 @@ from Thunder.utils.messages import (
     MSG_FILE_TYPE_DOCUMENT, MSG_FILE_TYPE_PHOTO, MSG_FILE_TYPE_STICKER,
     MSG_FILE_TYPE_UNKNOWN, MSG_FILE_TYPE_VIDEO, MSG_FILE_TYPE_VIDEO_NOTE,
     MSG_FILE_TYPE_VOICE, MSG_HELP, MSG_PING_RESPONSE, MSG_PING_START,
-    MSG_TOKEN_ACTIVATED, MSG_TOKEN_FAILED, MSG_TOKEN_INVALID, MSG_WELCOME,
-    MSG_ACCESS_DENIED # <-- NEW: MSG_ACCESS_DENIED import
+    MSG_TOKEN_ACTIVATED, MSG_TOKEN_FAILED, MSG_TOKEN_INVALID, MSG_WELCOME
 )
 from Thunder.vars import Var
 
@@ -37,14 +38,8 @@ async def start_command(bot: Client, msg: Message):
     if not await check_banned(bot, msg):
         return
     user = msg.from_user
-    user_id = user.id
     if user:
         await log_newusr(bot, user.id, user.first_name)
-
-    # ----------------------------------------------------
-    # NEW LOGIC: Check token payload first
-    # ----------------------------------------------------
-    token_activated = False # Flag to skip access check if token is provided
     
     if len(msg.command) == 2:
         payload = msg.command[1]
@@ -68,56 +63,39 @@ async def start_command(bot: Client, msg: Message):
                         ))
                 
                 if token.get("activated"):
-                    token_activated = True # Token already active, allow access below
                     try:
-                        # Continue to welcome message, but notify token status
-                        await msg.reply_text(text=MSG_TOKEN_FAILED.format(
+                        return await msg.reply_text(text=MSG_TOKEN_FAILED.format(
                             reason="Token has already been activated.",
                             error_id=str(int(time.time()))[-8:]
                         ))
                     except FloodWait as e:
                         await asyncio.sleep(e.value)
-                        await msg.reply_text(text=MSG_TOKEN_FAILED.format(
+                        return await msg.reply_text(text=MSG_TOKEN_FAILED.format(
                             reason="Token has already been activated.",
                             error_id=str(int(time.time()))[-8:]
                         ))
                 
-                else: # New token activation
-                    now = datetime.utcnow()
-                    exp = now + timedelta(hours=Var.TOKEN_TTL_HOURS)
-                    
-                    await db.token_col.update_one(
-                        {"token": payload, "user_id": user.id},
-                        {"$set": {"activated": True, "created_at": now, "expires_at": exp}}
-                    )
-                    
-                    hrs = round((exp - now).total_seconds() / 3600, 1)
-                    token_activated = True
-                    try:
-                        return await msg.reply_text(text=MSG_TOKEN_ACTIVATED.format(duration_hours=hrs))
-                    except FloodWait as e:
-                        await asyncio.sleep(e.value)
-                        return await msg.reply_text(text=MSG_TOKEN_ACTIVATED.format(duration_hours=hrs))
+                now = datetime.utcnow()
+                exp = now + timedelta(hours=Var.TOKEN_TTL_HOURS)
+                
+                await db.token_col.update_one(
+                    {"token": payload, "user_id": user.id},
+                    {"$set": {"activated": True, "created_at": now, "expires_at": exp}}
+                )
+                
+                hrs = round((exp - now).total_seconds() / 3600, 1)
+                try:
+                    return await msg.reply_text(text=MSG_TOKEN_ACTIVATED.format(duration_hours=hrs))
+                except FloodWait as e:
+                    await asyncio.sleep(e.value)
+                    return await msg.reply_text(text=MSG_TOKEN_ACTIVATED.format(duration_hours=hrs))
             else:
                 try:
                     return await msg.reply_text(text=MSG_TOKEN_INVALID)
                 except FloodWait as e:
                     await asyncio.sleep(e.value)
                     return await msg.reply_text(text=MSG_TOKEN_INVALID)
-
-    # ----------------------------------------------------
-    # NEW LOGIC: Block access if user is not authorized/owner/token-activated
-    # ----------------------------------------------------
-    is_authorized = token_activated or await tokens.check(user_id)
-    
-    if not is_authorized:
-        try:
-            return await msg.reply_text(text=MSG_ACCESS_DENIED)
-        except FloodWait as e:
-            await asyncio.sleep(e.value)
-            return await msg.reply_text(text=MSG_ACCESS_DENIED)
-    # ----------------------------------------------------
-    
+            
     txt = MSG_WELCOME.format(user_name=user.first_name if user else "Unknown")
     link, title = await get_force_info(bot)
     if link:
@@ -143,10 +121,6 @@ async def start_command(bot: Client, msg: Message):
 async def help_command(bot: Client, msg: Message):
     if not await check_banned(bot, msg):
         return
-    # NEW: Check authorization before allowing access to the command
-    if not await tokens.check(msg.from_user.id):
-        return await msg.reply_text(text=MSG_ACCESS_DENIED)
-        
     if msg.from_user:
         await log_newusr(bot, msg.from_user.id, msg.from_user.first_name)
     
@@ -168,10 +142,6 @@ async def help_command(bot: Client, msg: Message):
 async def about_command(bot: Client, msg: Message):
     if not await check_banned(bot, msg):
         return
-    # NEW: Check authorization before allowing access to the command
-    if not await tokens.check(msg.from_user.id):
-        return await msg.reply_text(text=MSG_ACCESS_DENIED)
-        
     if msg.from_user:
         await log_newusr(bot, msg.from_user.id, msg.from_user.first_name)
     
@@ -246,10 +216,6 @@ async def send_file_dc(msg: Message, file_msg: Message):
 async def dc_command(bot: Client, msg: Message):
     if not await check_banned(bot, msg):
         return
-    # NEW: Check authorization before allowing access to the command
-    if not await tokens.check(msg.from_user.id):
-        return await msg.reply_text(text=MSG_ACCESS_DENIED)
-        
     if not await force_channel_check(bot, msg):
         return
     if not msg.from_user and not msg.reply_to_message:
@@ -283,10 +249,6 @@ async def dc_command(bot: Client, msg: Message):
 async def ping_command(bot: Client, msg: Message):
     if not await check_banned(bot, msg):
         return
-    # NEW: Check authorization before allowing access to the command
-    if not await tokens.check(msg.from_user.id):
-        return await msg.reply_text(text=MSG_ACCESS_DENIED)
-        
     if not await force_channel_check(bot, msg):
         return
     start = time.time()
