@@ -1,4 +1,4 @@
-# Thunder/utils/messages.py
+# Thunder/utils/messages.py (Updated)
 
 # =====================================================================================
 # ====== ERROR MESSAGES ======
@@ -87,6 +87,15 @@ MSG_DEAUTHORIZE_SUCCESS = (
 )
 MSG_TOKEN_ACTIVATED = "✅ Token successfully activated!\n\n⏳ This token is valid for {duration_hours} hours."
 MSG_TOKEN_INVALID = "🚫 **Expired or Invalid Token.** Please click the button below to activate your access token."
+
+# 🔑 NEW MESSAGE: Access Denied for unauthorized users
+MSG_ACCESS_DENIED = (
+    "🔒 **Access Denied** 🔒\n\n"
+    "⚠️ **Sorry, bot access is currently restricted.**\n"
+    "To use this bot, you need an **authorization token** or explicit permission from the bot owner.\n\n"
+    "💬 Please contact the owner for access."
+)
+
 MSG_NO_AUTH_USERS = "ℹ️ **No Authorized Users Found:** The list is currently empty."
 MSG_AUTH_USER_INFO = """{i}. 👤 User ID: `{user_id}`
    • Authorized by: `{authorized_by}`
@@ -108,14 +117,12 @@ MSG_SHELL_OUTPUT_STDERR = "<b>[stderr]:</b>\n<pre>{error}</pre>"
 MSG_SHELL_NO_OUTPUT = "✅ <b>Command Executed:</b> No output."
 
 # ------ Admin View & Control ------
+# ... (rest of messages.py remains the same) ...
 
-MSG_WORKLOAD_ITEM = "   {bot_name}: {load}\n"
-MSG_ADMIN_RESTART_DONE = "✅ **Restart Successful!**"
-MSG_RESTARTING = "♻️ **Updating and Restarting Bot...**\n\n> ⏳ Please wait a moment."
-MSG_LOG_FILE_CAPTION = "📄 **System Logs**"
-
-MSG_LOG_FILE_EMPTY = "ℹ️ **Log File Empty:** No data found in the log file."
-MSG_LOG_FILE_MISSING = "⚠️ **Log File Missing:** Could not find the log file."
+# =====================================================================================
+# ====== BUTTON TEXTS (User-facing) ======
+# =====================================================================================
+# ... (rest of messages.py remains the same) ...
 
 # =====================================================================================
 # ====== BUTTON TEXTS (User-facing) ======
@@ -389,3 +396,4 @@ MSG_SYSTEM_STATS = (
 )
 
 MSG_DB_STATS = "📊 **Database Statistics**\n\n> 👥 **Total Users:** `{total_users}`"
+
