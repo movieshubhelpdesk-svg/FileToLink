@@ -459,9 +459,7 @@ async def process_single(
             error_id=secrets.token_hex(6)
         ))
         return None
-
-
-async def process_batch(
+      async def process_batch(
     bot: Client,
     msg: Message,
     start_id: int,
@@ -592,4 +590,5 @@ async def process_batch(
             status_msg,
             final_result,
             disable_web_page_preview=True
-        )
+          )
+
