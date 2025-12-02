@@ -1,3 +1,5 @@
+# Thunder/bot/plugins/stream.py
+
 import asyncio
 import secrets
 from typing import Any, Dict, Optional
@@ -459,136 +461,87 @@ async def process_single(
             error_id=secrets.token_hex(6)
         ))
         return None
-      async def process_batch(
+      async def process_single(
     bot: Client,
     msg: Message,
-    start_id: int,
-    count: int,
+    file_msg: Message,
     status_msg: Message,
     shortener_val: bool,
+    original_request_msg: Optional[Message] = None,
     notification_msg: Optional[Message] = None
 ):
-    processed = 0
-    failed = 0
-    links_list = []
-    for batch_start in range(0, count, BATCH_SIZE):
-        batch_size = min(BATCH_SIZE, count - batch_start)
-        batch_ids = list(range(start_id + batch_start, start_id + batch_start + batch_size))
-        try:
+    try:
+        stored_msg = await fwd_media(file_msg)
+        if not stored_msg:
+            logger.error(f"Failed to forward media for message {file_msg.id}. Skipping.")
+            return None
+        links = await gen_links(stored_msg, shortener=shortener_val)
+        if notification_msg:
+            await safe_edit_message(
+                notification_msg,
+                MSG_LINKS.format(
+                    file_name=links['media_name'],
+                    file_size=links['media_size'],
+                    download_link=links['online_link'],
+                    stream_link=links['stream_link']
+                ),
+                parse_mode=enums.ParseMode.MARKDOWN,
+                disable_web_page_preview=True,
+                reply_markup=get_link_buttons(links)
+            )
+        elif not original_request_msg:
+            await send_link(msg, links)
+        if msg.chat.type != enums.ChatType.PRIVATE and msg.from_user and not original_request_msg:
+            await send_dm_links(bot, msg.from_user.id, links, msg.chat.title or "the chat")
+        source_msg = original_request_msg if original_request_msg else msg
+        source_info = ""
+        source_id = 0
+        if source_msg.from_user:
+            source_info = source_msg.from_user.full_name
+            if not source_info:
+                source_info = f"@{source_msg.from_user.username}" if source_msg.from_user.username else "Unknown User"
+            source_id = source_msg.from_user.id
+        elif source_msg.chat.type == enums.ChatType.CHANNEL:
+            source_info = source_msg.chat.title or "Unknown Channel"
+            source_id = source_msg.chat.id
+        if source_info and source_id:
             try:
-                await status_msg.edit_text(
-                    MSG_PROCESSING_BATCH.format(
-                        batch_number=(batch_start // BATCH_SIZE) + 1,
-                        total_batches=(count + BATCH_SIZE - 1) // BATCH_SIZE,
-                        file_count=batch_size
+                await stored_msg.reply_text(
+                    MSG_NEW_FILE_REQUEST.format(
+                        source_info=source_info,
+                        id_=source_id,
+                        online_link=links['online_link'],
+                        stream_link=links['stream_link']
                     ),
-                    disable_web_page_preview=True
+                    disable_web_page_preview=True,
+                    quote=True
                 )
             except FloodWait as e:
                 await asyncio.sleep(e.value)
-                await status_msg.edit_text(
-                    MSG_PROCESSING_BATCH.format(
-                        batch_number=(batch_start // BATCH_SIZE) + 1,
-                        total_batches=(count + BATCH_SIZE - 1) // BATCH_SIZE,
-                        file_count=batch_size
+                await stored_msg.reply_text(
+                    MSG_NEW_FILE_REQUEST.format(
+                        source_info=source_info,
+                        id_=source_id,
+                        online_link=links['online_link'],
+                        stream_link=links['stream_link']
                     ),
-                    disable_web_page_preview=True
+                    disable_web_page_preview=True,
+                    quote=True
                 )
-        except Exception as e:
-            logger.error(f"Error editing batch status message: {e}", exc_info=True)
-
-        for i, media_id in enumerate(batch_ids):
-            try:
-                file_msg = await bot.get_messages(
-                    chat_id=msg.chat.id,
-                    message_ids=media_id
-                )
-                if file_msg.media:
-                    links = await process_single(
-                        bot,
-                        msg,
-                        file_msg,
-                        status_msg=None,
-                        shortener_val=shortener_val,
-                        original_request_msg=msg
-                    )
-                    if links:
-                        links_list.append(
-                            f"**{links['media_name']}** ({links['media_size']})\n"
-                            f"Download: `{links['online_link']}`\n"
-                            f"Stream: `{links['stream_link']}`\n"
-                        )
-                        processed += 1
-                else:
-                    failed += 1
-            except Exception as e:
-                logger.error(f"Error processing media ID {media_id} in batch: {e}", exc_info=True)
-                failed += 1
-
-            if (i + 1) % BATCH_UPDATE_INTERVAL == 0 or i == batch_size - 1:
-                try:
-                    await status_msg.edit_text(
-                        MSG_PROCESSING_STATUS.format(
-                            processed=processed,
-                            total=count,
-                            failed=failed
-                        ),
-                        disable_web_page_preview=True
-                    )
-                except Exception as e:
-                    logger.error(f"Error updating batch status: {e}", exc_info=True)
-            
-            await asyncio.sleep(MESSAGE_DELAY)
-
-    # Final Result Message
-    final_result = MSG_PROCESSING_RESULT.format(
-        processed=processed,
-        total=count,
-        failed=failed
-    )
-    
-    # Send all links to the user's DM
-    if msg.from_user:
-        dm_text = MSG_DM_BATCH_PREFIX.format(chat_title=msg.chat.title or "The Group") + "\n"
-        dm_text += MSG_BATCH_LINKS_READY.format(count=len(links_list)) + "\n\n"
-        dm_text += "\n---\n".join(links_list)
+        if status_msg:
+            await safe_delete_message(status_msg)
+        return links
+    except Exception as e:
+        logger.error(f"Error processing single file for message {file_msg.id}: {e}", exc_info=True)
+        if status_msg:
+            await safe_edit_message(status_msg, MSG_ERROR_PROCESSING_MEDIA)
         
-        try:
-            try:
-                await bot.send_message(
-                    chat_id=msg.from_user.id,
-                    text=dm_text,
-                    disable_web_page_preview=True,
-                    parse_mode=enums.ParseMode.MARKDOWN
-                )
-            except FloodWait as e:
-                await asyncio.sleep(e.value)
-                await bot.send_message(
-                    chat_id=msg.from_user.id,
-                    text=dm_text,
-                    disable_web_page_preview=True,
-                    parse_mode=enums.ParseMode.MARKDOWN
-                )
-            
-            # Update original status message
-            await safe_edit_message(
-                status_msg,
-                final_result + "\n\n**✅ Links sent to your DM!**",
-                disable_web_page_preview=True
-            )
-            
-        except Exception as e:
-            logger.error(f"Error sending batch DM to user {msg.from_user.id}: {e}", exc_info=True)
-            # Send result in group if DM fails
-            await safe_edit_message(
-                status_msg,
-                final_result + "\n\n" + MSG_ERROR_DM_FAILED
-            )
-    else:
-        # If user is anonymous, just update the status message
-        await safe_edit_message(
-            status_msg,
-            final_result,
-            disable_web_page_preview=True
-          )
+        await notify_own(bot, MSG_CRITICAL_ERROR.format(
+            error=str(e),
+            error_id=secrets.token_hex(6)
+        ))
+        return None
 
+
+async def process_batch(
+        await safe_delete_message(notification_msg)
