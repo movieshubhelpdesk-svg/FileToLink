@@ -20,7 +20,8 @@ from Thunder.utils.human_readable import humanbytes
 from Thunder.utils.logger import logger
 from Thunder.utils.messages import (
     MSG_ABOUT, MSG_BUTTON_ABOUT, MSG_BUTTON_CLOSE, MSG_BUTTON_GET_HELP,
-    MSG_BUTTON_GITHUB, MSG_BUTTON_JOIN_CHANNEL, MSG_BUTTON_VIEW_PROFILE,
+    # MSG_BUTTON_GITHUB को हटा दिया गया है
+    MSG_BUTTON_JOIN_CHANNEL, MSG_BUTTON_VIEW_PROFILE,
     MSG_COMMUNITY_CHANNEL, MSG_DC_ANON_ERROR, MSG_DC_FILE_ERROR,
     MSG_DC_FILE_INFO, MSG_DC_INVALID_USAGE, MSG_DC_UNKNOWN,
     MSG_ERROR_USER_INFO, MSG_FILE_TYPE_ANIMATION, MSG_FILE_TYPE_AUDIO,
@@ -99,10 +100,11 @@ async def start_command(bot: Client, msg: Message):
     if link:
         txt += f"\n\n{MSG_COMMUNITY_CHANNEL.format(channel_title=title)}"
     
+    # FIX 1: GitHub button removed & FIX 2: List structure corrected
     btns = [
         [InlineKeyboardButton(MSG_BUTTON_GET_HELP, callback_data="help_command"),
          InlineKeyboardButton(MSG_BUTTON_ABOUT, callback_data="about_command")],
-         InlineKeyboardButton(MSG_BUTTON_CLOSE, callback_data="close_panel")]
+        [InlineKeyboardButton(MSG_BUTTON_CLOSE, callback_data="close_panel")]
     ]
     
     if link:
@@ -142,10 +144,10 @@ async def about_command(bot: Client, msg: Message):
     if msg.from_user:
         await log_newusr(bot, msg.from_user.id, msg.from_user.first_name)
     
+    # FIX 3: GitHub button removed & List structure corrected
     btns = [
         [InlineKeyboardButton(MSG_BUTTON_GET_HELP, callback_data="help_command")],
-      
-         InlineKeyboardButton(MSG_BUTTON_CLOSE, callback_data="close_panel")]
+        [InlineKeyboardButton(MSG_BUTTON_CLOSE, callback_data="close_panel")]
     ]
     
     try:
@@ -277,4 +279,4 @@ async def ping_command(bot: Client, msg: Message):
         )
     except MessageNotModified:
         pass
-
+      
