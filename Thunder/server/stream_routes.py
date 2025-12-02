@@ -113,10 +113,17 @@ def parse_range_header(range_header: str, file_size: int) -> tuple[int, int]:
     return start, end
 
 
-@routes.get("/", allow_head=True)
+# Thunder/server/stream_routes.py
 
+@routes.get("/", allow_head=True)
 async def root_redirect(request):
-    raise web.HTTPFound("https://github.com/fyaz05/FileToLink")
+    # Ab yeh GitHub par redirect nahi karega.
+    # Ek simple message show karega ki bot chal raha hai.
+    return web.Response(
+        text="FileToLink Bot is Running successfully! Use Telegram to interact.",
+        content_type='text/plain'
+    )
+    
 
 
 @routes.get("/status", allow_head=True)
@@ -276,3 +283,4 @@ async def media_delivery(request: web.Request):
         logger.error(f"Server error {error_id}: {e}", exc_info=True)
         raise web.HTTPInternalServerError(
             text=f"An unexpected server error occurred: {error_id}") from e
+
