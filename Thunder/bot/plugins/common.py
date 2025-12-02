@@ -1,5 +1,3 @@
-# Thunder/bot/plugins/common.py
-
 import asyncio
 import time
 from datetime import datetime, timedelta
