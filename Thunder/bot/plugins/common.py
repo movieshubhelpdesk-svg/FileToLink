@@ -1,5 +1,3 @@
-# Thunder/bot/plugins/common.py
-
 import asyncio
 import time
 from datetime import datetime, timedelta
@@ -34,6 +32,12 @@ from Thunder.vars import Var
 
 @StreamBot.on_message(filters.command("start") & filters.private)
 async def start_command(bot: Client, msg: Message):
+    # --- OWNER ACCESS CHECK START ---
+    if msg.from_user and msg.from_user.id != Var.OWNER_ID:
+        await msg.reply_text("⛔ **Access Denied!**\nThis bot is private and for owner use only.")
+        return
+    # --- OWNER ACCESS CHECK END ---
+
     if not await check_banned(bot, msg):
         return
     user = msg.from_user
@@ -118,6 +122,12 @@ async def start_command(bot: Client, msg: Message):
 
 @StreamBot.on_message(filters.command("help") & filters.private)
 async def help_command(bot: Client, msg: Message):
+    # --- OWNER ACCESS CHECK START ---
+    if msg.from_user and msg.from_user.id != Var.OWNER_ID:
+        await msg.reply_text("⛔ **Access Denied!**\nThis bot is private and for owner use only.")
+        return
+    # --- OWNER ACCESS CHECK END ---
+
     if not await check_banned(bot, msg):
         return
     if msg.from_user:
@@ -139,6 +149,12 @@ async def help_command(bot: Client, msg: Message):
 
 @StreamBot.on_message(filters.command("about") & filters.private)
 async def about_command(bot: Client, msg: Message):
+    # --- OWNER ACCESS CHECK START ---
+    if msg.from_user and msg.from_user.id != Var.OWNER_ID:
+        await msg.reply_text("⛔ **Access Denied!**\nThis bot is private and for owner use only.")
+        return
+    # --- OWNER ACCESS CHECK END ---
+
     if not await check_banned(bot, msg):
         return
     if msg.from_user:
@@ -213,6 +229,12 @@ async def send_file_dc(msg: Message, file_msg: Message):
 
 @StreamBot.on_message(filters.command("dc"))
 async def dc_command(bot: Client, msg: Message):
+    # --- OWNER ACCESS CHECK START ---
+    if msg.from_user and msg.from_user.id != Var.OWNER_ID:
+        await msg.reply_text("⛔ **Access Denied!**\nThis command is restricted to the owner.")
+        return
+    # --- OWNER ACCESS CHECK END ---
+
     if not await check_banned(bot, msg):
         return
     if not await force_channel_check(bot, msg):
@@ -246,6 +268,12 @@ async def dc_command(bot: Client, msg: Message):
 
 @StreamBot.on_message(filters.command("ping") & filters.private)
 async def ping_command(bot: Client, msg: Message):
+    # --- OWNER ACCESS CHECK START ---
+    if msg.from_user and msg.from_user.id != Var.OWNER_ID:
+        await msg.reply_text("⛔ **Access Denied!**\nThis command is restricted to the owner.")
+        return
+    # --- OWNER ACCESS CHECK END ---
+
     if not await check_banned(bot, msg):
         return
     if not await force_channel_check(bot, msg):
@@ -280,5 +308,3 @@ async def ping_command(bot: Client, msg: Message):
     except MessageNotModified:
         pass
       
-
-
