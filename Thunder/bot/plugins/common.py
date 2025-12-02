@@ -1,4 +1,4 @@
-Dekh bhai ye hai ek 
+
 # Thunder/bot/plugins/common.py
 
 import asyncio
@@ -281,3 +281,4 @@ async def ping_command(bot: Client, msg: Message):
     except MessageNotModified:
         pass
       
+
