@@ -461,87 +461,139 @@ async def process_single(
             error_id=secrets.token_hex(6)
         ))
         return None
-      async def process_single(
+async def process_batch(
     bot: Client,
     msg: Message,
-    file_msg: Message,
+    start_id: int,
+    count: int,
     status_msg: Message,
     shortener_val: bool,
-    original_request_msg: Optional[Message] = None,
     notification_msg: Optional[Message] = None
 ):
-    try:
-        stored_msg = await fwd_media(file_msg)
-        if not stored_msg:
-            logger.error(f"Failed to forward media for message {file_msg.id}. Skipping.")
-            return None
-        links = await gen_links(stored_msg, shortener=shortener_val)
-        if notification_msg:
-            await safe_edit_message(
-                notification_msg,
-                MSG_LINKS.format(
-                    file_name=links['media_name'],
-                    file_size=links['media_size'],
-                    download_link=links['online_link'],
-                    stream_link=links['stream_link']
-                ),
-                parse_mode=enums.ParseMode.MARKDOWN,
-                disable_web_page_preview=True,
-                reply_markup=get_link_buttons(links)
-            )
-        elif not original_request_msg:
-            await send_link(msg, links)
-        if msg.chat.type != enums.ChatType.PRIVATE and msg.from_user and not original_request_msg:
-            await send_dm_links(bot, msg.from_user.id, links, msg.chat.title or "the chat")
-        source_msg = original_request_msg if original_request_msg else msg
-        source_info = ""
-        source_id = 0
-        if source_msg.from_user:
-            source_info = source_msg.from_user.full_name
-            if not source_info:
-                source_info = f"@{source_msg.from_user.username}" if source_msg.from_user.username else "Unknown User"
-            source_id = source_msg.from_user.id
-        elif source_msg.chat.type == enums.ChatType.CHANNEL:
-            source_info = source_msg.chat.title or "Unknown Channel"
-            source_id = source_msg.chat.id
-        if source_info and source_id:
+    processed = 0
+    failed = 0
+    links_list = []
+    for batch_start in range(0, count, BATCH_SIZE):
+        batch_size = min(BATCH_SIZE, count - batch_start)
+        batch_ids = list(range(start_id + batch_start, start_id + batch_start + batch_size))
+        try:
             try:
-                await stored_msg.reply_text(
-                    MSG_NEW_FILE_REQUEST.format(
-                        source_info=source_info,
-                        id_=source_id,
-                        online_link=links['online_link'],
-                        stream_link=links['stream_link']
-                    ),
-                    disable_web_page_preview=True,
-                    quote=True
+                await status_msg.edit_text(
+                    MSG_PROCESSING_BATCH.format(
+                        batch_number=(batch_start // BATCH_SIZE) + 1,
+                        total_batches=(count + BATCH_SIZE - 1) // BATCH_SIZE,
+                        file_count=batch_size
+                    )
                 )
             except FloodWait as e:
                 await asyncio.sleep(e.value)
-                await stored_msg.reply_text(
-                    MSG_NEW_FILE_REQUEST.format(
-                        source_info=source_info,
-                        id_=source_id,
-                        online_link=links['online_link'],
-                        stream_link=links['stream_link']
-                    ),
-                    disable_web_page_preview=True,
-                    quote=True
+                await status_msg.edit_text(
+                    MSG_PROCESSING_BATCH.format(
+                        batch_number=(batch_start // BATCH_SIZE) + 1,
+                        total_batches=(count + BATCH_SIZE - 1) // BATCH_SIZE,
+                        file_count=batch_size
+                    )
                 )
-        if status_msg:
-            await safe_delete_message(status_msg)
-        return links
-    except Exception as e:
-        logger.error(f"Error processing single file for message {file_msg.id}: {e}", exc_info=True)
-        if status_msg:
-            await safe_edit_message(status_msg, MSG_ERROR_PROCESSING_MEDIA)
-        
-        await notify_own(bot, MSG_CRITICAL_ERROR.format(
-            error=str(e),
-            error_id=secrets.token_hex(6)
-        ))
-        return None
-
-
-async def process_batch(
+        except MessageNotModified:
+            pass
+        try:
+            try:
+                messages = await bot.get_messages(msg.chat.id, batch_ids)
+            except FloodWait as e:
+                await asyncio.sleep(e.value)
+                messages = await bot.get_messages(msg.chat.id, batch_ids)
+            if messages is None:
+                messages = []
+        except Exception as e:
+            logger.error(f"Error getting messages in batch: {e}", exc_info=True)
+            messages = []
+        for m in messages:
+            if m and m.media:
+                links = await process_single(bot, msg, m, None, shortener_val, original_request_msg=msg)
+                if links:
+                    links_list.append(links['online_link'])
+                    processed += 1
+                else:
+                    failed += 1
+            else:
+                failed += 1
+        if (processed + failed) % BATCH_UPDATE_INTERVAL == 0 or (processed + failed) == count:
+            try:
+                try:
+                    await status_msg.edit_text(
+                        MSG_PROCESSING_STATUS.format(
+                            processed=processed,
+                            total=count,
+                            failed=failed
+                        )
+                    )
+                except FloodWait as e:
+                    await asyncio.sleep(e.value)
+                    await status_msg.edit_text(
+                        MSG_PROCESSING_STATUS.format(
+                            processed=processed,
+                            total=count,
+                            failed=failed
+                        )
+                    )
+            except MessageNotModified:
+                pass
+    for i in range(0, len(links_list), LINK_CHUNK_SIZE):
+        chunk = links_list[i:i+LINK_CHUNK_SIZE]
+        chunk_text = MSG_BATCH_LINKS_READY.format(count=len(chunk)) + f"\n\n`{chr(10).join(chunk)}`"
+        try:
+            await msg.reply_text(
+                chunk_text,
+                quote=True,
+                disable_web_page_preview=True,
+                parse_mode=enums.ParseMode.MARKDOWN
+            )
+        except FloodWait as e:
+            await asyncio.sleep(e.value)
+            await msg.reply_text(
+                chunk_text,
+                quote=True,
+                disable_web_page_preview=True,
+                parse_mode=enums.ParseMode.MARKDOWN
+            )
+        if msg.chat.type != enums.ChatType.PRIVATE and msg.from_user:
+            try:
+                try:
+                    await bot.send_message(
+                        chat_id=msg.from_user.id,
+                        text=MSG_DM_BATCH_PREFIX.format(chat_title=msg.chat.title or "the chat") + "\n" + chunk_text,
+                        disable_web_page_preview=True,
+                        parse_mode=enums.ParseMode.MARKDOWN
+                    )
+                except FloodWait as e:
+                    await asyncio.sleep(e.value)
+                    await bot.send_message(
+                        chat_id=msg.from_user.id,
+                        text=MSG_DM_BATCH_PREFIX.format(chat_title=msg.chat.title or "the chat") + "\n" + chunk_text,
+                        disable_web_page_preview=True,
+                        parse_mode=enums.ParseMode.MARKDOWN
+                    )
+            except Exception as e:
+                logger.error(f"Error sending DM in batch: {e}", exc_info=True)
+                await reply_user_err(msg, MSG_ERROR_DM_FAILED)
+        if i + LINK_CHUNK_SIZE < len(links_list):
+            await asyncio.sleep(MESSAGE_DELAY)
+    try:
+        await status_msg.edit_text(
+            MSG_PROCESSING_RESULT.format(
+                processed=processed,
+                total=count,
+                failed=failed
+            )
+        )
+    except FloodWait as e:
+        await asyncio.sleep(e.value)
+        await status_msg.edit_text(
+            MSG_PROCESSING_RESULT.format(
+                processed=processed,
+                total=count,
+                failed=failed
+            )
+        )
+    if notification_msg:
         await safe_delete_message(notification_msg)
