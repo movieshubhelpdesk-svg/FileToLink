@@ -1,4 +1,4 @@
-# Thunder/bot/plugins/callbacks.py
+# Thunder/bot/plugins/callbacks.py (Updated Code)
 
 import asyncio
 
@@ -13,7 +13,8 @@ from Thunder.utils.decorators import owner_only
 from Thunder.utils.logger import logger
 from Thunder.utils.messages import (
     MSG_ABOUT, MSG_BROADCAST_CANCEL, MSG_BUTTON_ABOUT, MSG_BUTTON_CLOSE,
-    MSG_BUTTON_GET_HELP, MSG_BUTTON_GITHUB, MSG_BUTTON_JOIN_CHANNEL,
+    MSG_BUTTON_GET_HELP, # MSG_BUTTON_GITHUB हटा दिया गया है
+    MSG_BUTTON_JOIN_CHANNEL,
     MSG_ERROR_BROADCAST_INSTRUCTION, MSG_ERROR_BROADCAST_RESTART,
     MSG_ERROR_CALLBACK_UNSUPPORTED, MSG_HELP
 )
@@ -75,12 +76,10 @@ async def help_callback(client: Client, callback_query: CallbackQuery):
 async def about_callback(client: Client, callback_query: CallbackQuery):
     try:
         await callback_query.answer()
+        # FIX: GitHub button line removed from here
         buttons = [
             [InlineKeyboardButton(MSG_BUTTON_GET_HELP, callback_data="help_command")],
-            [
-                InlineKeyboardButton(MSG_BUTTON_GITHUB, url="https://github.com/fyaz05/FileToLink"),
-                InlineKeyboardButton(MSG_BUTTON_CLOSE, callback_data="close_panel")
-            ]
+            [InlineKeyboardButton(MSG_BUTTON_CLOSE, callback_data="close_panel")]
         ]
         try:
             await callback_query.message.edit_text(
@@ -221,3 +220,4 @@ async def fallback_callback(client: Client, callback_query: CallbackQuery):
             await callback_query.answer(MSG_ERROR_CALLBACK_UNSUPPORTED, show_alert=True)
     except Exception as e:
         logger.error(f"Error in fallback callback: {e}", exc_info=True)
+  
