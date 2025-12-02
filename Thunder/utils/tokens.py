@@ -1,4 +1,4 @@
-# Thunder/utils/tokens.py (Updated)
+# Thunder/utils/tokens.py
 
 import secrets
 from datetime import datetime, timedelta
@@ -16,24 +16,16 @@ async def check(user_id: int) -> bool:
         if not getattr(Var, "TOKEN_ENABLED", False):
             logger.debug("Token system disabled - access granted")
             return True
-        
-        # OWNER / AUTH_USERS LIST ACCESS
-        if user_id == Var.OWNER_ID or user_id in Var.AUTH_USERS: 
-            logger.debug("Owner/Auth User List access granted")
+        if user_id == Var.OWNER_ID:
+            logger.debug("Owner access granted")
             return True
-            
         current_time = datetime.utcnow()
-        
-        # DB AUTHORIZED USERS CHECK (from /authorize command)
         auth_result = await db.authorized_users_col.find_one(
             {"user_id": user_id},
             {"_id": 1}
         )
         if auth_result:
-            logger.debug("Database authorized user access granted")
             return True
-            
-        # TOKEN ACCESS CHECK
         token_result = await db.token_col.find_one(
             {"user_id": user_id, "expires_at": {"$gt": current_time}, "activated": True},
             {"_id": 1}
@@ -45,10 +37,9 @@ async def check(user_id: int) -> bool:
         logger.error(f"Error in check for user {user_id}: {e}", exc_info=True)
         raise
 
-async def manual_generate(user_id: int) -> str:
-    """Owner/Admin only - creates a token for a user. Replaced the automatic 'generate' function."""
+async def generate(user_id: int) -> str:
     try:
-        logger.debug(f"Manual token generation started for user: {user_id}")
+        logger.debug(f"Token generation started for user: {user_id}")
         existing_token_doc = await db.token_col.find_one(
             {"user_id": user_id, "activated": False, "expires_at": {"$gt": datetime.utcnow()}},
             {"token": 1}
@@ -88,7 +79,7 @@ async def manual_generate(user_id: int) -> str:
                     raise
         return ""
     except Exception as e:
-        logger.error(f"Error in manual_generate for user {user_id}: {e}", exc_info=True)
+        logger.error(f"Error in generate for user {user_id}: {e}", exc_info=True)
         raise
 
 async def allowed(user_id: int) -> bool:
@@ -167,4 +158,3 @@ async def cleanup_expired_tokens() -> int:
     except Exception as e:
         logger.error(f"Error in cleanup_expired_tokens: {e}", exc_info=True)
         return 0
-        
